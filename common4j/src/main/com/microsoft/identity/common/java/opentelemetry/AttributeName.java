@@ -514,6 +514,21 @@ public enum AttributeName {
     is_webcp_in_webview_enabled,
 
     /**
+     * Indicates whether native re-WPJ handoff routing is enabled.
+     */
+    is_native_re_wpj_handoff_enabled,
+
+    /**
+     * Records the management owner detected for native re-WPJ handoff.
+     */
+    re_wpj_management_owner,
+
+    /**
+     * Records the terminal native re-WPJ handoff or fallback outcome.
+     */
+    re_wpj_handoff_outcome,
+
+    /**
      * Records the if webview received an SSL error and
      * corresponding primary error code.
      */
