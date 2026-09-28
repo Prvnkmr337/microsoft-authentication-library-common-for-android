@@ -1939,10 +1939,30 @@ public class AzureActiveDirectoryWebViewClientTest {
     }
 
     @Test
+    public void testHttpsDeviceCaRequest_RecordsNativeHandoffOnProcessWebCpRedirects() {
+        setNativeReWpjHandoffFlight(true);
+        final CapturingSpanFactory spanFactory =
+                new CapturingSpanFactory(SpanName.ProcessWebCpRedirects.name());
+        OTelUtility.setSpanFactory(spanFactory);
+        final AzureActiveDirectoryWebViewClient webViewClient = Mockito.spy(mWebViewClient);
+        Mockito.doReturn(true).when(webViewClient).isWebCpInWebviewFeatureEnabled(anyString());
+        Mockito.doReturn(INTUNE_APP_PACKAGE_NAME).when(webViewClient).getReWpjManagementAppPackage();
+        Mockito.doNothing().when(webViewClient).launchReWpjManagementApp(anyString());
+
+        webViewClient.shouldOverrideUrlLoading(mMockWebView, TEST_PARSED_HTTPS_DEVICE_CA_URL);
+
+        Mockito.verify(webViewClient).launchReWpjManagementApp(INTUNE_APP_PACKAGE_NAME);
+        assertEquals(Boolean.TRUE, spanFactory.captured().attribute(
+                AttributeName.is_native_re_wpj_handoff_enabled.name()));
+        assertEquals("native_handoff_succeeded", spanFactory.captured().attribute(
+                AttributeName.re_wpj_handoff_outcome.name()));
+    }
+
+    @Test
     public void testProcessDeviceCaRequest_NoRecognizedOwner_KeepsWebCpFlow() {
         setNativeReWpjHandoffFlight(true);
         final CapturingSpanFactory spanFactory =
-                new CapturingSpanFactory(SpanName.ProcessWebsiteRequest.name());
+                new CapturingSpanFactory(SpanName.ProcessWebCpRedirects.name());
         OTelUtility.setSpanFactory(spanFactory);
         final WebView mockWebView = Mockito.mock(WebView.class);
         final AzureActiveDirectoryWebViewClient webViewClient = Mockito.spy(mWebViewClient);
@@ -1965,7 +1985,7 @@ public class AzureActiveDirectoryWebViewClientTest {
     public void testProcessDeviceCaRequest_FlightOff_UsesLegacyFlow() {
         setNativeReWpjHandoffFlight(false);
         final CapturingSpanFactory spanFactory =
-                new CapturingSpanFactory(SpanName.ProcessWebsiteRequest.name());
+                new CapturingSpanFactory(SpanName.ProcessWebCpRedirects.name());
         OTelUtility.setSpanFactory(spanFactory);
         final WebView mockWebView = Mockito.mock(WebView.class);
         final AzureActiveDirectoryWebViewClient webViewClient = Mockito.spy(mWebViewClient);
@@ -1989,7 +2009,7 @@ public class AzureActiveDirectoryWebViewClientTest {
     public void testProcessDeviceCaRequest_FlightOff_CompanyPortalLaunchTelemetry() {
         setNativeReWpjHandoffFlight(false);
         final CapturingSpanFactory spanFactory =
-                new CapturingSpanFactory(SpanName.ProcessWebsiteRequest.name());
+                new CapturingSpanFactory(SpanName.ProcessWebCpRedirects.name());
         OTelUtility.setSpanFactory(spanFactory);
 
         try (final MockedConstruction<PackageHelper> ignored =
@@ -2007,7 +2027,7 @@ public class AzureActiveDirectoryWebViewClientTest {
     public void testProcessDeviceCaRequest_FlightOff_CompanyPortalFailureTelemetry() {
         setNativeReWpjHandoffFlight(false);
         final CapturingSpanFactory spanFactory =
-                new CapturingSpanFactory(SpanName.ProcessWebsiteRequest.name());
+                new CapturingSpanFactory(SpanName.ProcessWebCpRedirects.name());
         OTelUtility.setSpanFactory(spanFactory);
         final Activity mockActivity = mockActivityThatThrowsOnLaunch();
         final AzureActiveDirectoryWebViewClient webViewClient = Mockito.spy(
@@ -2029,7 +2049,7 @@ public class AzureActiveDirectoryWebViewClientTest {
     public void testProcessDeviceCaRequest_CompatibilityCompanyPortalLaunchTelemetry() {
         setNativeReWpjHandoffFlight(true);
         final CapturingSpanFactory spanFactory =
-                new CapturingSpanFactory(SpanName.ProcessWebsiteRequest.name());
+                new CapturingSpanFactory(SpanName.ProcessWebCpRedirects.name());
         OTelUtility.setSpanFactory(spanFactory);
         final AzureActiveDirectoryWebViewClient webViewClient = Mockito.spy(mWebViewClient);
         Mockito.doReturn(null).when(webViewClient).getReWpjManagementAppPackage();
@@ -2049,7 +2069,7 @@ public class AzureActiveDirectoryWebViewClientTest {
     public void testProcessDeviceCaRequest_CompatibilityCompanyPortalFailureTelemetry() {
         setNativeReWpjHandoffFlight(true);
         final CapturingSpanFactory spanFactory =
-                new CapturingSpanFactory(SpanName.ProcessWebsiteRequest.name());
+                new CapturingSpanFactory(SpanName.ProcessWebCpRedirects.name());
         OTelUtility.setSpanFactory(spanFactory);
         final Activity mockActivity = mockActivityThatThrowsOnLaunch();
         final AzureActiveDirectoryWebViewClient webViewClient = Mockito.spy(
@@ -2072,7 +2092,7 @@ public class AzureActiveDirectoryWebViewClientTest {
     public void testProcessDeviceCaRequest_TargetedLaunchFails_BrowserAvailable_OpensHttpsUrl() {
         setNativeReWpjHandoffFlight(true);
         final CapturingSpanFactory spanFactory =
-                new CapturingSpanFactory(SpanName.ProcessWebsiteRequest.name());
+                new CapturingSpanFactory(SpanName.ProcessWebCpRedirects.name());
         OTelUtility.setSpanFactory(spanFactory);
         registerActivationHandler(
                 mActivity,
@@ -2102,7 +2122,7 @@ public class AzureActiveDirectoryWebViewClientTest {
     public void testProcessDeviceCaRequest_TargetedLaunchFails_NoBrowser_LoadsHttpsUrlInWebView() {
                 setNativeReWpjHandoffFlight(true);
         final CapturingSpanFactory spanFactory =
-                new CapturingSpanFactory(SpanName.ProcessWebsiteRequest.name());
+                new CapturingSpanFactory(SpanName.ProcessWebCpRedirects.name());
         OTelUtility.setSpanFactory(spanFactory);
         final WebView mockWebView = Mockito.mock(WebView.class);
         final AzureActiveDirectoryWebViewClient webViewClient = Mockito.spy(mWebViewClient);
@@ -2124,7 +2144,7 @@ public class AzureActiveDirectoryWebViewClientTest {
     public void testProcessDeviceCaRequest_TargetedLaunchAndBrowserFail_LoadsHttpsUrlInWebView() {
         setNativeReWpjHandoffFlight(true);
         final CapturingSpanFactory spanFactory =
-                new CapturingSpanFactory(SpanName.ProcessWebsiteRequest.name());
+                new CapturingSpanFactory(SpanName.ProcessWebCpRedirects.name());
         OTelUtility.setSpanFactory(spanFactory);
         registerActivationHandler(
                 mActivity,
@@ -2163,7 +2183,7 @@ public class AzureActiveDirectoryWebViewClientTest {
             @NonNull final String managementAppPackage) {
                 setNativeReWpjHandoffFlight(true);
         final CapturingSpanFactory spanFactory =
-                new CapturingSpanFactory(SpanName.ProcessWebsiteRequest.name());
+                new CapturingSpanFactory(SpanName.ProcessWebCpRedirects.name());
         OTelUtility.setSpanFactory(spanFactory);
         final IAuthorizationCompletionCallback mockCallback =
                 Mockito.mock(IAuthorizationCompletionCallback.class);

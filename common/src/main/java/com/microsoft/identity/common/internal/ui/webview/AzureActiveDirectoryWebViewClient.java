@@ -1167,6 +1167,21 @@ public class AzureActiveDirectoryWebViewClient extends OAuth2WebViewClient {
      * @param url  The URL representing the device CA request.
      */
     private void processDeviceCaRequest(@NonNull final WebView view, @NonNull final String url) {
+        final Span span = createSpanWithAttributesFromParent(SpanName.ProcessWebCpRedirects.name());
+        try (final Scope scope = SpanExtension.makeCurrentSpan(span)) {
+            processDeviceCaRequestWithinSpan(view, url);
+            span.setStatus(StatusCode.OK);
+        } catch (final RuntimeException | Error throwable) {
+            span.recordException(throwable);
+            span.setStatus(StatusCode.ERROR);
+            throw throwable;
+        } finally {
+            span.end();
+        }
+    }
+
+    private void processDeviceCaRequestWithinSpan(@NonNull final WebView view,
+                                                  @NonNull final String url) {
         final String methodTag = TAG + ":processDeviceCaRequest";
         Logger.info(methodTag, "This is a device CA request.");
 
@@ -1388,27 +1403,23 @@ public class AzureActiveDirectoryWebViewClient extends OAuth2WebViewClient {
     @VisibleForTesting
     protected void loadDeviceCaUrl(@NonNull final String originalUrl, @NonNull final WebView view) {
         final String methodTag = TAG + ":loadDeviceCaUrl";
-        final Span span = createSpanWithAttributesFromParent(SpanName.ProcessWebCpRedirects.name());
-        try (final Scope scope = SpanExtension.makeCurrentSpan(span)) {
+        try {
             if (isWebCpInWebviewFeatureEnabled(originalUrl)) {
                 Logger.info(methodTag, "Loading device CA request in WebView.");
-                span.setAttribute(AttributeName.is_webcp_in_webview_enabled.name(), true);
+                SpanExtension.current().setAttribute(AttributeName.is_webcp_in_webview_enabled.name(), true);
                 String httpsUrl = originalUrl.replace(AuthenticationConstants.Broker.BROWSER_EXT_PREFIX, HTTPS_URL_PREFIX);
                 view.loadUrl(httpsUrl, mRequestHeaders);
             } else {
                 Logger.info(methodTag, "Loading device CA request in browser.");
-                span.setAttribute(AttributeName.is_webcp_in_webview_enabled.name(), false);
+                SpanExtension.current().setAttribute(AttributeName.is_webcp_in_webview_enabled.name(), false);
                 openLinkInBrowser(originalUrl);
                 returnResult(RawAuthorizationResult.ResultCode.MDM_FLOW);
             }
-            span.setStatus(StatusCode.OK);
         } catch (final Throwable throwable) {
             Logger.error(methodTag, "Failed to load device CA URL in WebView.", throwable);
-            span.recordException(throwable);
-            span.setStatus(StatusCode.ERROR);
+            SpanExtension.current().recordException(throwable);
+            SpanExtension.current().setStatus(StatusCode.ERROR);
             returnError(UNKNOWN_ERROR, throwable.getMessage());
-        } finally {
-            span.end();
         }
     }
 
